@@ -1,99 +1,64 @@
-# 🚀 Incident Management System (IMS)
+# Incident Management System
 
-## 📌 Overview
-This project is a production-style Incident Management System designed to handle high-throughput failure signals, group them into incidents, and manage lifecycle workflows with mandatory Root Cause Analysis (RCA).
+A production-style incident pipeline that accepts failure signals, processes them asynchronously, groups noisy events, and enforces an operational lifecycle with root-cause analysis.
 
----
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-queue-DC382D?logo=redis&logoColor=white)
 
-## 🧠 Architecture
+## System flow
 
-Client → FastAPI → Redis Queue → Worker → SQLite DB
-↓
-Debouncing Logic
+```mermaid
+flowchart LR
+  A[Failure signal] --> B[FastAPI ingestion]
+  B --> C[Redis queue]
+  C --> D[Worker]
+  D --> E[Debouncing and lifecycle rules]
+  E --> F[(SQLite via SQLAlchemy)]
+```
 
+## Engineering highlights
 
----
+- Queue-backed ingestion separates request latency from processing work
+- Debouncing groups repeated failure signals into a single incident
+- Explicit `OPEN → RESOLVED → CLOSED` lifecycle
+- Root-cause analysis is required before closure
+- Mean-time-to-resolution calculation
+- Persistent relational state and a health endpoint
 
-## ⚙️ Features
-- ⚡ High-throughput ingestion using Redis queue  
-- 🔄 Async processing via worker system  
-- 🧠 Debouncing logic (100 signals → 1 incident)  
-- 📊 Incident lifecycle management  
-  - OPEN → RESOLVED → CLOSED  
-- 🔐 Mandatory RCA before closing  
-- ⏱ MTTR calculation  
-- 💾 Persistent storage (SQLite)  
-- 📡 Health monitoring endpoint  
+## Run locally
 
----
-
-## 🧱 Tech Stack
-- FastAPI  
-- Redis  
-- SQLite  
-- SQLAlchemy  
-- Python  
-
----
-
-## ▶️ How to Run
+Prerequisites: Python 3.10+, Redis, and a POSIX shell.
 
 ```bash
-# Clone repo
-git clone <your-repo-link>
+git clone https://github.com/pankuprudhviraju1/incident-management-system.git
 cd incident-management-system/backend
-
-# Activate virtual env
-source venv/bin/activate
-
-# Install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 
-# Start Redis
-brew services start redis
-
-# Run backend
+# Start Redis separately, then run the API
 uvicorn app.main:app --reload
 
-# Run worker
+# In another terminal with the same environment
 python -m app.workers.worker
+```
 
-🧪 API Endpoints
-POST /signal → Ingest signal
-GET /incidents → View all incidents
-POST /incident/{id}/rca → Add RCA
-POST /incident/{id}/close → Close incident
-GET /health → Health check
+## API surface
 
-🔥 Key Design Decisions
-Backpressure handling via Redis queue
-Separation of concerns (API, worker, DB)
-Debouncing strategy to avoid alert flooding
-Transactional updates for incident lifecycle
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/signal` | Ingest a failure signal |
+| `GET` | `/incidents` | List incidents |
+| `POST` | `/incident/{id}/rca` | Record root-cause analysis |
+| `POST` | `/incident/{id}/close` | Close an eligible incident |
+| `GET` | `/health` | Service health check |
 
-📈 Future Improvements
-Add real-time dashboard (React)
-Use Kafka for higher scale
-Add alerting system (email/slack)
-Implement distributed tracing
+## Design choices
 
+- **Backpressure:** Redis absorbs bursts instead of doing all work in the request path.
+- **Noise control:** debouncing prevents alert floods from inflating incident counts.
+- **State integrity:** lifecycle rules keep resolution and RCA responsibilities explicit.
+- **Separation of concerns:** API, worker, persistence, and domain rules are independently understandable.
 
----
+## Production roadmap
 
-# 🎯 Final verdict
-
-👉 Now this = **100% submission-ready README**  
-👉 Before = would hurt your impression  
-
----
-
-# 🚀 Next step
-
-Say:
-
-👉 **“next requirements.txt”**
-
-We’ll finish:
-- dependencies file  
-- GitHub push  
-- final PDF submission 🚀
+Move to PostgreSQL, add durable retry/dead-letter semantics, structured metrics and traces, authentication and role-based access, real-time notifications, and load/failure testing.
